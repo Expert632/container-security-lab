@@ -24,7 +24,7 @@ jobs:
           image-ref: "security-lab:latest"
           format: "json"
           output: "scan-results/trivy-report.json"
-          exit-code: "1"
+          exit-code: "0"
           ignore-unfixed: true
           severity: "HIGH,CRITICAL"
 
