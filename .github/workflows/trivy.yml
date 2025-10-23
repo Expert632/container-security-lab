@@ -1,6 +1,5 @@
-name: Container Security Scan (Trivy)
+name: Container Security Lab - Trivy Scan
 
-# Déclencheurs : push sur main + lancement manuel
 on:
   push:
     branches: [ "main" ]
@@ -11,39 +10,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout le code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Build Docker image
+      # 2️⃣ Créer le dossier scan-results pour éviter les erreurs
+      - name: Prepare scan-results folder
+        run: mkdir -p scan-results
+
+      # 3️⃣ Build Docker image
       - name: Build Docker image
         run: |
           docker build -t security-lab:latest .
 
-      # 3️⃣ Run Trivy Scanner
+      # 4️⃣ Lancer Trivy Scan (JSON)
       - name: Run Trivy Scanner
         uses: aquasecurity/trivy-action@master
-        continue-on-error: true               # ← continue même si vulnérabilités
+        continue-on-error: true       # Continue même si vulnérabilités
         with:
           image-ref: "security-lab:latest"
           format: "json"
           output: "scan-results/trivy-report.json"
-          exit-code: "0"                     # ← ne fait pas échouer le job
+          exit-code: "0"             # Ne fait pas échouer le job
           ignore-unfixed: true
           severity: "HIGH,CRITICAL"
 
-      # 4️⃣ Convert JSON report → HTML (optionnel, plus lisible)
+      # 5️⃣ Générer le rapport HTML
       - name: Generate HTML Report
         run: |
-          mkdir -p scan-results
           docker run --rm \
             -v $PWD/scan-results:/src \
             python:3.11-slim \
             sh -c "pip install trivy-to-html && trivy-to-html -i /src/trivy-report.json -o /src/trivy-report.html"
 
-      # 5️⃣ Upload Artifacts (toujours exécuté)
+      # 6️⃣ Upload Artifacts
       - name: Upload Artifacts
-        if: always()                        # ← permet d'uploader même si Trivy a trouvé des vulnérabilités
+        if: always()                  # Toujours exécuté, même si Trivy détecte vulnérabilités
         uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
