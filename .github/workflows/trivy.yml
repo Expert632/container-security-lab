@@ -1,0 +1,42 @@
+name: Container Security Scan (Trivy)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t security-lab:latest .
+
+      - name: Run Trivy Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "security-lab:latest"
+          format: "json"
+          output: "scan-results/trivy-report.json"
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: "HIGH,CRITICAL"
+
+      - name: Add HTML Report
+        run: |
+          docker run --rm \
+            -v $PWD/scan-results:/src \
+            python:3.11-slim \
+            sh -c "pip install trivy-to-html && trivy-to-html -i /src/trivy-report.json -o /src/trivy-report.html"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: scan-results/
